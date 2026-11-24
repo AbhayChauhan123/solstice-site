@@ -1,12 +1,8 @@
-/* Solstice Group LLC site script.
-   SITE CONFIG: edit these three values to go live. See README.md. */
-const SITE_CONFIG = {
-  mailingAddress: "[MAILING ADDRESS PLACEHOLDER]",
-  publicPhone: "[PUBLIC PHONE PLACEHOLDER]",
-  formspreeEndpoint: "FORMSPREE_ENDPOINT_PLACEHOLDER"
-};
-
+/* Solstice Group LLC site script. See README.md. */
 const CONTACT_EMAIL = "info@solsticegroupusa.com";
+
+/* FormSubmit delivers contact form submissions to CONTACT_EMAIL. */
+const FORM_ENDPOINT = "https://formsubmit.co/ajax/" + CONTACT_EMAIL;
 
 (function () {
   "use strict";
@@ -15,39 +11,53 @@ const CONTACT_EMAIL = "info@solsticegroupusa.com";
   doc.classList.add("js");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  /* The form posts online only once a real Formspree URL is configured. */
-  function hasFormEndpoint() {
-    return /^https:\/\/formspree\.io\/f\/[A-Za-z0-9]+$/.test(SITE_CONFIG.formspreeEndpoint);
-  }
-
-  /* A phone value becomes a tap-to-call link once it contains a real number. */
-  function phoneDigits(value) {
-    return value.replace(/[^\d+]/g, "");
-  }
-
-  /* Company details: fill every [data-site] element from SITE_CONFIG. */
-  function fillSiteDetails() {
-    ["mailingAddress", "publicPhone"].forEach(function (key) {
-      const value = SITE_CONFIG[key];
-      document.querySelectorAll('[data-site="' + key + '"]').forEach(function (el) {
-        el.textContent = "";
-        if (key === "publicPhone" && phoneDigits(value).length >= 7) {
-          const link = document.createElement("a");
-          link.href = "tel:" + phoneDigits(value);
-          link.textContent = value;
-          el.appendChild(link);
-        } else {
-          el.textContent = value;
-        }
-      });
-      document.querySelectorAll('[data-site-row="' + key + '"]').forEach(function (row) {
-        row.hidden = !value;
-      });
-    });
-
+  /* Footer year stays current. */
+  function fillYear() {
     document.querySelectorAll("[data-year]").forEach(function (el) {
       el.textContent = String(new Date().getFullYear());
     });
+  }
+
+  /* Count a number from one value to another, easing out. */
+  function countTo(el, from, to, duration, delay) {
+    const start = performance.now() + delay;
+    function frame(now) {
+      const t = Math.min(Math.max((now - start) / duration, 0), 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(from + (to - from) * eased).toLocaleString("en-US");
+      if (t < 1) window.requestAnimationFrame(frame);
+    }
+    window.requestAnimationFrame(frame);
+  }
+
+  /* Hero dashboard: the stats count up as their cards appear (timed to the CSS
+     delays), then one order ships. Skipped entirely with reduced motion. */
+  function initHeroDemo() {
+    const dash = document.querySelector(".console");
+    if (!dash || reduceMotion.matches) return;
+
+    const kpis = dash.querySelectorAll(".kpi");
+    kpis.forEach(function (kpi, i) {
+      const value = kpi.querySelector(".kpi-value");
+      const target = parseInt(value.textContent.replace(/,/g, ""), 10);
+      if (!target) return;
+      value.textContent = "0";
+      countTo(value, 0, target, 900, 320 + i * 70);
+    });
+
+    window.setTimeout(function () {
+      const pill = dash.querySelector(".console-table tbody tr:nth-child(2) .pill");
+      const ready = kpis[1];
+      if (!pill || !ready) return;
+      pill.classList.add("is-swapping");
+      window.setTimeout(function () {
+        pill.textContent = "Shipped";
+        pill.classList.add("pill--blue");
+        pill.classList.remove("is-swapping");
+        countTo(ready.querySelector(".kpi-value"), 5, 4, 360, 0);
+        ready.querySelector(".kpi-note").textContent = "1 due today";
+      }, 180);
+    }, 3200);
   }
 
   /* Sections fade up once when they first enter the viewport. */
@@ -148,18 +158,13 @@ const CONTACT_EMAIL = "info@solsticegroupusa.com";
     });
   }
 
-  /* Contact form: inline validation, Formspree delivery, email fallback. */
+  /* Contact form: inline validation, FormSubmit delivery, email fallback on failure. */
   function initForm() {
     const form = document.getElementById("contact-form");
     if (!form) return;
     const status = document.getElementById("form-status");
     const submit = form.querySelector('button[type="submit"]');
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-    if (hasFormEndpoint()) {
-      form.setAttribute("action", SITE_CONFIG.formspreeEndpoint);
-      form.removeAttribute("enctype");
-    }
 
     const rules = {
       name: function (v) { return v ? "" : "Enter your name."; },
@@ -233,29 +238,27 @@ const CONTACT_EMAIL = "info@solsticegroupusa.com";
       }
 
       const data = new FormData(form);
-      if (data.get("_gotcha")) return;
+      if (data.get("_honey")) return;
 
-      if (!hasFormEndpoint()) {
-        const link = document.createElement("a");
-        link.href = mailtoHref(data);
-        link.textContent = "Open your email app with this message";
-        setStatus("Online delivery for this form is not active yet. ", true);
-        status.appendChild(link);
-        status.appendChild(document.createTextNode(", or write to " + CONTACT_EMAIL + "."));
-        return;
-      }
+      const payload = {};
+      data.forEach(function (value, key) { payload[key] = value; });
+      payload._subject = "Website inquiry: " + data.get("inquiry_type");
+      payload._replyto = data.get("email");
 
-      data.append("_subject", "Website inquiry: " + data.get("inquiry_type"));
       submit.setAttribute("aria-busy", "true");
       submit.disabled = true;
 
-      fetch(SITE_CONFIG.formspreeEndpoint, {
+      fetch(FORM_ENDPOINT, {
         method: "POST",
-        body: data,
-        headers: { Accept: "application/json" }
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json", Accept: "application/json" }
       })
         .then(function (response) {
           if (!response.ok) throw new Error("Request failed");
+          return response.json();
+        })
+        .then(function (result) {
+          if (String(result.success) !== "true") throw new Error("Not delivered");
           form.reset();
           setStatus("Thank you. Your inquiry was sent to " + CONTACT_EMAIL + ". We will reply by email.", false);
         })
@@ -276,7 +279,8 @@ const CONTACT_EMAIL = "info@solsticegroupusa.com";
     });
   }
 
-  fillSiteDetails();
+  fillYear();
+  initHeroDemo();
   initReveal();
   initInquiryLinks();
   initNav();

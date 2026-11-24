@@ -23,52 +23,13 @@ python3 -m http.server 8080
 
 Then open http://localhost:8080.
 
-## 1. Three values to swap before launch
+## 1. Contact details and the contact form
 
-All three live in one config block at the top of `js/main.js`, lines 3 to 7:
+The phone number, (571) 457-2155, and the location, Northern Virginia, are written directly in the HTML of each page (the Contact section of `index.html` and the footer of every page). The structured data in the `<head>` of `index.html` carries the same phone number and the state.
 
-```js
-const SITE_CONFIG = {
-  mailingAddress: "[MAILING ADDRESS PLACEHOLDER]",
-  publicPhone: "[PUBLIC PHONE PLACEHOLDER]",
-  formspreeEndpoint: "FORMSPREE_ENDPOINT_PLACEHOLDER"
-};
-```
+The contact form sends submissions to info@solsticegroupusa.com through FormSubmit (https://formsubmit.co), a free service that needs no account or API key. The address is set once, as `CONTACT_EMAIL` at the top of `js/main.js`. With JavaScript on, the form sends in the background and shows a confirmation on the page. Without JavaScript, it posts to FormSubmit directly.
 
-The script writes the address and phone into the Contact section and the footer of every page. Edit the values once and every page updates.
-
-### Mailing address (line 4)
-
-Replace the text inside the quotes with the address exactly as it should appear, on one line. Example format: `"Street, Suite, City, VA ZIP"`. If you would rather not show an address, set it to `""` and the row disappears.
-
-### Public phone (line 5)
-
-Replace with the number as it should read, for example `"(703) 555-0100"` format. The script turns it into a tap-to-call link automatically. Set it to `""` to hide the row.
-
-### Formspree endpoint (line 6)
-
-1. Create a free account at https://formspree.io and create a new form.
-2. Set the form's notification email to info@solsticegroupusa.com.
-3. Copy the form endpoint. It looks like `https://formspree.io/f/abcdwxyz`.
-4. Paste it as the value of `formspreeEndpoint`.
-
-Until a real endpoint is set, the form still validates, then offers to open the visitor's email app with their message filled in. A direct email link sits under the form at all times. The site's Content Security Policy already allows `https://formspree.io`, so no other change is needed.
-
-### After you swap the address and phone: structured data
-
-The JSON-LD block in the `<head>` of `index.html` leaves out address and telephone on purpose, because placeholder text is not valid structured data. Once the real values exist, add these two properties inside that block, after the `"email"` line, filling in your own values:
-
-```json
-"telephone": "+1-<area code>-<number>",
-"address": {
-  "@type": "PostalAddress",
-  "streetAddress": "<street and suite>",
-  "addressLocality": "<city>",
-  "addressRegion": "VA",
-  "postalCode": "<ZIP>",
-  "addressCountry": "US"
-},
-```
+The first submission after the form goes live triggers a one-time activation email from FormSubmit to info@solsticegroupusa.com. Click the link in it, and every later submission is delivered. If a submission ever fails, the form offers to open the visitor's email app with the message filled in, and a direct email link sits under the form at all times. The site's Content Security Policy allows `https://formsubmit.co` and nothing else outside the site.
 
 ## 2. Deploy to GitHub Pages
 
