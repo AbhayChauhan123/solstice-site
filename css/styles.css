@@ -1314,8 +1314,26 @@ a:hover {
 }
 
 /* Contact */
+/* Contact: light surface with a fine dot grid that fills the open top right and
+   fades out toward the form, so the section has texture without decoration. */
 .section--contact {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--surface);
   border-top: 1px solid var(--border);
+}
+
+.section--contact::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='2' cy='2' r='1.25' fill='%23AEB8C5'/%3E%3C/svg%3E");
+  background-size: 20px 20px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 100% 0%, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 80%);
+  mask-image: radial-gradient(ellipse 70% 80% at 100% 0%, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 80%);
+  pointer-events: none;
 }
 
 .contact-grid {
@@ -1334,8 +1352,8 @@ a:hover {
   .form-panel { grid-area: form; }
   .contact-aside { grid-area: aside; }
 
-  .contact-aside .contact-details {
-    padding-top: 2.5rem;
+  .contact-aside {
+    align-self: start;
   }
 }
 
@@ -1374,10 +1392,13 @@ a:hover {
 }
 
 /* Form */
-.form-panel {
+.form-panel,
+.contact-aside {
   padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
-  background: var(--surface);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
 .form-grid {
