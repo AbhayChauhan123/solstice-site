@@ -27,9 +27,19 @@ Then open http://localhost:8080.
 
 The phone number, (571) 457-2155, and the location, Northern Virginia, are written directly in the HTML of each page (the Contact section of `index.html` and the footer of every page). The structured data in the `<head>` of `index.html` carries the same phone number and the state.
 
-The contact form sends submissions to info@solsticegroupusa.com through FormSubmit (https://formsubmit.co), a free service that needs no account or API key. The address is set once, as `CONTACT_EMAIL` at the top of `js/main.js`. With JavaScript on, the form sends in the background and shows a confirmation on the page. Without JavaScript, it posts to FormSubmit directly.
+The contact form is delivered by our own Google Apps Script, `tools/contact-form.gs`, running in the Google account that receives inquiries. The script checks each submission, drops bot submissions caught by the hidden honeypot field, caps delivery at 30 emails an hour, and emails the inquiry to the account that owns the script, with Reply-To set to the visitor. No email address is stored in the script or in the site code beyond the public info@ address.
 
-The first submission after the form goes live triggers a one-time activation email from FormSubmit to info@solsticegroupusa.com. Click the link in it, and every later submission is delivered. If a submission ever fails, the form offers to open the visitor's email app with the message filled in, and a direct email link sits under the form at all times. The site's Content Security Policy allows `https://formsubmit.co` and nothing else outside the site.
+To set it up or move it to another account:
+
+1. Sign in to the Google account that should receive inquiries and open https://script.google.com.
+2. Create a new project, replace its code with the contents of `tools/contact-form.gs`, and save.
+3. Click **Deploy > New deployment**, choose **Web app**, set **Execute as** to **Me** and **Who has access** to **Anyone**, then **Deploy**.
+4. Approve the permission prompt. Google warns that the app is unverified because it is your own script: choose **Advanced**, then open the project.
+5. Copy the web app URL (it ends in `/exec`) into `FORM_ENDPOINT` at the top of `js/main.js`.
+
+After editing the script, use **Deploy > Manage deployments**, edit the existing deployment and pick **New version**, so the URL stays the same.
+
+With JavaScript on, the form sends in the background and shows a confirmation on the page. If a send fails, or without JavaScript, it falls back to the visitor's email app with the message filled in, and a direct email link sits under the form at all times. The site's Content Security Policy allows `https://script.google.com` and `https://script.googleusercontent.com` (where Apps Script returns its response) and nothing else outside the site.
 
 ## 2. Deploy to GitHub Pages
 

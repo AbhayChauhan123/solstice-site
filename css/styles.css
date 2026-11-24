@@ -313,25 +313,6 @@ a:hover {
   color: var(--text);
 }
 
-/* Header wordmark: flag mark and Old Glory Blue lettering. Header only; the footer keeps the plain wordmark. */
-.site-header .wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #0A3161;
-}
-
-.site-header .wordmark:hover {
-  color: #0A3161;
-}
-
-.wordmark-mark {
-  flex: none;
-  display: block;
-  width: 2.375rem;
-  height: 1.25rem;
-}
-
 .site-nav {
   margin-left: auto;
 }
@@ -360,32 +341,6 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-/* Small phones (under 360 px): tighten the header so the flag, name and buttons fit. */
-@media (max-width: 22.4375rem) {
-  .header-inner {
-    gap: 1rem;
-  }
-
-  .header-inner.container {
-    gap: 0.75rem;
-    padding-inline: 0.75rem;
-  }
-
-  .site-header .wordmark {
-    gap: 0.5rem;
-    font-size: 1rem;
-  }
-
-  .wordmark-mark {
-    width: 1.875rem;
-    height: 1rem;
-  }
-
-  .header-actions .button--sm {
-    padding-inline: 0.75rem;
-  }
 }
 
 .nav-toggle {
@@ -545,6 +500,22 @@ a:hover {
   }
 }
 
+/* Hero scroll motion. js/main.js sets --hero-p from 0 (page top) to 1 (dashboard scrolled up):
+   the dashboard starts tilted back and slightly smaller, and straightens to full size as the page scrolls.
+   Without JavaScript, or with reduced motion, --hero-p stays 1 and the dashboard is flat. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .hero-visual {
+    transform: perspective(1600px) rotateX(calc((1 - var(--hero-p, 1)) * 14deg)) scale(calc(0.92 + var(--hero-p, 1) * 0.08));
+    transform-origin: 50% 0;
+    will-change: transform;
+  }
+
+  .js .hero-visual.is-flat {
+    transform: none;
+    will-change: auto;
+  }
+}
+
 /* Hero product illustration: an app frame built in HTML and CSS. */
 .console {
   overflow: hidden;
@@ -625,19 +596,17 @@ a:hover {
   font-weight: 700;
 }
 
-/* App mark in the flag's colors: white tile, Old Glory Blue S, Old Glory Red band at the base. */
 .app-mark {
-  display: block;
+  display: grid;
   flex: none;
+  place-items: center;
   width: 1.5rem;
   height: 1.5rem;
-}
-
-.console .app-mark svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  font-family: inherit;
+  background: var(--dark);
+  border-radius: 5px;
+  color: #FFFFFF;
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 .app-nav {
@@ -1046,6 +1015,13 @@ a:hover {
   .js .console-table tbody tr:nth-child(2) { animation-delay: 780ms; }
   .js .console-table tbody tr:nth-child(3) { animation-delay: 840ms; }
   .js .console-table tbody tr:nth-child(4) { animation-delay: 900ms; }
+
+  /* This week's bar follows scroll through --w8 (set in js/main.js). The scale property
+     composes with the bar-grow keyframes, which animate transform. */
+  .js .bars .is-current {
+    scale: 1 var(--w8, 1);
+    transition: scale 160ms ease-out;
+  }
 
   .console .pill {
     transition: opacity 160ms ease, transform 160ms ease;

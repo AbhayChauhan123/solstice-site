@@ -1,8 +1,9 @@
 /* Solstice Group LLC site script. See README.md. */
 const CONTACT_EMAIL = "info@solsticegroupusa.com";
 
-/* FormSubmit delivers contact form submissions to CONTACT_EMAIL. */
-const FORM_ENDPOINT = "https://formsubmit.co/ajax/" + CONTACT_EMAIL;
+/* Contact form delivery: the web app URL of tools/contact-form.gs, a Google Apps Script
+   that emails each submission to the account that owns it. See README.md. */
+const FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbzGc3naEjsn4TcGABOTJHFcCgJX0lwcoKB1hPcoWdkyRCdxi9pCtrZND6ufj3rRCxrehA/exec";
 
 (function () {
   "use strict";
@@ -30,34 +31,106 @@ const FORM_ENDPOINT = "https://formsubmit.co/ajax/" + CONTACT_EMAIL;
     window.requestAnimationFrame(frame);
   }
 
-  /* Hero dashboard: the stats count up as their cards appear (timed to the CSS
-     delays), then one order ships. Skipped entirely with reduced motion. */
+  /* Hero dashboard, driven by scroll. Scrolling plays a week of orders through
+     the example data: the frame straightens, this week's bar grows, open orders
+     rise, stock falls as orders go out, and two orders move to their next
+     status. Scrolling back up reverses it. Skipped entirely with reduced motion,
+     which leaves the finished dashboard from the HTML. */
   function initHeroDemo() {
     const dash = document.querySelector(".console");
-    if (!dash || reduceMotion.matches) return;
+    const visual = document.querySelector(".hero-visual");
+    if (!dash || !visual || reduceMotion.matches) return;
 
     const kpis = dash.querySelectorAll(".kpi");
-    kpis.forEach(function (kpi, i) {
-      const value = kpi.querySelector(".kpi-value");
-      const target = parseInt(value.textContent.replace(/,/g, ""), 10);
-      if (!target) return;
-      value.textContent = "0";
-      countTo(value, 0, target, 900, 320 + i * 70);
-    });
+    const rows = dash.querySelectorAll(".console-table tbody tr");
+    const value = function (i) { return kpis[i].querySelector(".kpi-value"); };
+    const note = function (i) { return kpis[i].querySelector(".kpi-note"); };
+    const clamp = function (v) { return Math.min(Math.max(v, 0), 1); };
+    const loadedAt = performance.now();
+    const BUILD_MS = 1300;
 
-    window.setTimeout(function () {
-      const pill = dash.querySelector(".console-table tbody tr:nth-child(2) .pill");
-      const ready = kpis[1];
-      if (!pill || !ready) return;
+    /* The example week at progress t, from 0 (start) to 1 (end). */
+    function weekAt(t) {
+      const shipped = t >= 0.55;
+      return {
+        open: Math.round(9 + 3 * t),
+        added: Math.round(3 * t),
+        ready: shipped ? 4 : 5,
+        due: shipped ? 1 : 2,
+        stock: Math.round(1312 - 72 * t),
+        bar: 0.5 + 0.5 * t,
+        po119: shipped ? ["Shipped", "blue"] : ["Packing", ""],
+        po120: t >= 0.85 ? ["Packing", ""] : ["Scheduled", "outline"]
+      };
+    }
+
+    /* Status pills fade out, change, and fade back in. The latest wanted state wins. */
+    function setPill(row, status) {
+      const pill = row && row.querySelector(".pill");
+      if (!pill || pill.dataset.want === status[0]) return;
+      if (!pill.dataset.want && pill.textContent === status[0]) {
+        pill.dataset.want = status[0];
+        return;
+      }
+      pill.dataset.want = status[0];
+      pill.dataset.tone = status[1];
       pill.classList.add("is-swapping");
       window.setTimeout(function () {
-        pill.textContent = "Shipped";
-        pill.classList.add("pill--blue");
-        pill.classList.remove("is-swapping");
-        countTo(ready.querySelector(".kpi-value"), 5, 4, 360, 0);
-        ready.querySelector(".kpi-note").textContent = "1 due today";
-      }, 180);
-    }, 3200);
+        pill.textContent = pill.dataset.want;
+        pill.className = "pill" + (pill.dataset.tone ? " pill--" + pill.dataset.tone : "");
+      }, 160);
+    }
+
+    function render(week, withNumbers) {
+      dash.style.setProperty("--w8", week.bar.toFixed(3));
+      note(0).textContent = "+" + week.added + " this week";
+      note(1).textContent = week.due + " due today";
+      if (withNumbers) {
+        value(0).textContent = String(week.open);
+        value(1).textContent = String(week.ready);
+        value(2).textContent = week.stock.toLocaleString("en-US");
+      }
+      setPill(rows[1], week.po119);
+      setPill(rows[3], week.po120);
+    }
+
+    /* Scroll progress. tilt: 0 at the top of the page, 1 once the dashboard's top edge
+       is 15% from the top of the window. story: runs 30% of a window further, so the
+       week finishes while the stats and chart are still on screen. */
+    function progress() {
+      const top = visual.getBoundingClientRect().top + window.scrollY;
+      const distance = Math.max(240, top - window.innerHeight * 0.15);
+      return {
+        tilt: clamp(window.scrollY / distance),
+        story: clamp(window.scrollY / (distance + window.innerHeight * 0.3))
+      };
+    }
+
+    /* First paint: the stats count up to the week as it stands at this scroll position. */
+    const start = weekAt(progress().story);
+    render(start, false);
+    [start.open, start.ready, start.stock, 2].forEach(function (target, i) {
+      value(i).textContent = "0";
+      countTo(value(i), 0, target, 900, 320 + i * 70);
+    });
+
+    let ticking = false;
+    function update() {
+      ticking = false;
+      const p = progress();
+      visual.style.setProperty("--hero-p", p.tilt.toFixed(4));
+      visual.classList.toggle("is-flat", p.tilt >= 1);
+      render(weekAt(p.story), performance.now() - loadedAt > BUILD_MS);
+    }
+    function onScroll() {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(update);
+      }
+    }
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
   }
 
   /* Sections fade up once when they first enter the viewport. */
@@ -158,7 +231,7 @@ const FORM_ENDPOINT = "https://formsubmit.co/ajax/" + CONTACT_EMAIL;
     });
   }
 
-  /* Contact form: inline validation, FormSubmit delivery, email fallback on failure. */
+  /* Contact form: inline validation, delivery through the Apps Script endpoint, email fallback on failure. */
   function initForm() {
     const form = document.getElementById("contact-form");
     if (!form) return;
@@ -240,36 +313,42 @@ const FORM_ENDPOINT = "https://formsubmit.co/ajax/" + CONTACT_EMAIL;
       const data = new FormData(form);
       if (data.get("_honey")) return;
 
+      function showFallback() {
+        const link = document.createElement("a");
+        link.href = mailtoHref(data);
+        link.textContent = "send it by email instead";
+        setStatus("Your message could not be sent. Please try again, or ", true);
+        status.appendChild(link);
+        status.appendChild(document.createTextNode("."));
+      }
+
+      if (!FORM_ENDPOINT) {
+        showFallback();
+        return;
+      }
+
       const payload = {};
       data.forEach(function (value, key) { payload[key] = value; });
-      payload._subject = "Website inquiry: " + data.get("inquiry_type");
-      payload._replyto = data.get("email");
 
       submit.setAttribute("aria-busy", "true");
       submit.disabled = true;
 
+      /* A plain-text body keeps this a simple request, which Apps Script accepts
+         without a CORS preflight. The script parses it as JSON. */
       fetch(FORM_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json", Accept: "application/json" }
+        body: JSON.stringify(payload)
       })
         .then(function (response) {
           if (!response.ok) throw new Error("Request failed");
           return response.json();
         })
         .then(function (result) {
-          if (String(result.success) !== "true") throw new Error("Not delivered");
+          if (result.success !== true) throw new Error("Not delivered");
           form.reset();
           setStatus("Thank you. Your inquiry was sent to " + CONTACT_EMAIL + ". We will reply by email.", false);
         })
-        .catch(function () {
-          const link = document.createElement("a");
-          link.href = mailtoHref(data);
-          link.textContent = "send it by email instead";
-          setStatus("Your message could not be sent. Please try again, or ", true);
-          status.appendChild(link);
-          status.appendChild(document.createTextNode("."));
-        })
+        .catch(showFallback)
         .finally(function () {
           submit.removeAttribute("aria-busy");
           submit.disabled = false;
